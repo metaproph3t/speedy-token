@@ -81,44 +81,60 @@ describe("speedy-token", async function () {
       })
       .rpc();
 
-    await program.methods.mintTo(0, new BN(10))
+    await program.methods.mintTo(0, new BN(100))
       .accounts({
         tokenSlab: tokenSlab.publicKey,
         mintSlab: mintSlab.publicKey,
       })
       .rpc();
 
-    console.log(program.instruction.mintTo.accounts({
-        tokenSlab: tokenSlab.publicKey,
-        mintSlab: mintSlab.publicKey,
-      }));
+    //console.log(program.instruction.mintTo.accounts({
+    //    tokenSlab: tokenSlab.publicKey,
+    //    mintSlab: mintSlab.publicKey,
+    //  }));
 
-    const ix = anchor.web3.Ed25519Program.createInstructionWithPrivateKey({message: Buffer.from([0,1,2,3,300]), privateKey: alice.secretKey});
-    const ix2 = anchor.web3.Ed25519Program.createInstructionWithPrivateKey({message: Buffer.from([0,1,2,3,3]), privateKey: alice.secretKey});
-    console.log(ix.data.length);
+    const buf = Buffer.alloc(16);
+    buf.writeUint32LE(0, 0);
+    buf.writeUint32LE(1, 4);
+    buf.writeBigUint64LE(10n, 8);
+    //console.log(buf);
 
-    const tx = await program.methods.transfer({from: 0, to: 1, amount: new BN(2)})
+    // we'll just send a bunch of these, bcuz manually serializing structs is
+    // boring :)
+    const ix = anchor.web3.Ed25519Program.createInstructionWithPrivateKey({message: buf, privateKey: alice.secretKey});
+    // CUs don't reflect cache locality / branch mispredicts either so this shouldn't
+    // affect things
+
+    const tx = await program.methods.transfer()
       .accounts({
         slab: tokenSlab.publicKey,
+        instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
       })
      // .remainingAccounts({
      //   pubkey: alice.publicKey,
      //   isWritable: false,
      //   isSigner: true,
      // })
-      .preInstructions([ix, ix2, ix2])
+      .preInstructions([ix, ix, ix, ix, ix, ix, ix])
      // .signers([alice])
       .transaction();
 
     [tx.recentBlockhash] = (await banksClient.getLatestBlockhash())!;
     tx.sign(payer);
-    console.log(tx);
+   // console.log(tx);
 
     let result = await banksClient.simulateTransaction(tx);
     console.log("Compute units consumed", result.meta.computeUnitsConsumed);
 
-    //console.log(await program.account.tokenAccountSlab.fetch(tokenSlab.publicKey));
+    await banksClient.processTransaction(tx);
 
+    const storedTokenSlab = await program.account.tokenAccountSlab.fetch(tokenSlab.publicKey);
+    const storedAlice = storedTokenSlab.tokenAccounts[0];
+    const storedBob = storedTokenSlab.tokenAccounts[1];
+
+    assert.equal(storedAlice.nonce, 8);
+    assert.ok(storedAlice.balance.eqn(30));
+    assert.ok(storedBob.balance.eqn(70));
   });
 });
 

@@ -35,23 +35,43 @@ describe("speedy-token", async function () {
   });
 
   it("tests pass", async function () {
-    let slabKeypair = Keypair.generate();
+    let mintSlab = Keypair.generate();
+    let tokenSlab = Keypair.generate();
+    let mintAuthority = Keypair.generate();
     let alice = Keypair.generate();
+    let bob = Keypair.generate();
+
+    await program.methods.initializeMintSlab()
+      .preInstructions([
+        await program.account.mintSlab.createInstruction(mintSlab, 10_000_000),
+      ])
+      .accounts({
+        slab: mintSlab.publicKey,
+        payer: payer.publicKey,
+      })
+      .signers([mintSlab])
+      .rpc();
+
+    await program.methods.allocateMint(mintAuthority.publicKey, 0)
+      .accounts({
+        slab: mintSlab.publicKey,
+      })
+      .rpc();
 
     await program.methods.initializeTokenAccountSlab()
       .preInstructions([
-        await program.account.tokenAccountSlab.createInstruction(slabKeypair, 10_000_000),
+        await program.account.tokenAccountSlab.createInstruction(tokenSlab, 10_000_000),
       ])
       .accounts({
-        slab: slabKeypair.publicKey,
+        slab: tokenSlab.publicKey,
         payer: payer.publicKey,
       })
-      .signers([slabKeypair])
+      .signers([tokenSlab])
       .rpc();
 
     await program.methods.allocateTokenAccount(alice.publicKey, 0, new BN(0))
       .accounts({
-        slab: slabKeypair.publicKey,
+        slab: tokenSlab.publicKey,
       })
       .rpc();
   });

@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use bytemuck::{Pod, Zeroable};
 
 declare_id!("Hj1cWGvmqaTruSZ2vETEwGBQNtWaJrYMWNhWozeSB4BN");
 
@@ -18,21 +17,21 @@ pub struct TokenAccountSlab {
     pub token_accounts: [TokenAccount; 200_000], 
 }
 
-//#[zero_copy]
-//pub struct Mint {
-//    pub mint_authority: Pubkey,
-//}
-//
-//#[account(zero_copy)]
-//pub struct MintSlab {
-//    pub mints: [Mint; 
+#[zero_copy]
+pub struct Mint {
+    pub mint_authority: Pubkey,
+}
+
+#[account(zero_copy)]
+pub struct MintSlab {
+    pub mints: [Mint; 300_000],
+}
 
 #[program]
 pub mod speedy_token {
     use super::*;
 
-    pub fn initialize_token_account_slab(ctx: Context<InitializeTokenAccountSlab>) -> Result<()> {
-        let slab = &mut ctx.accounts.slab.load_init()?;
+    pub fn initialize_token_account_slab(_ctx: Context<InitializeTokenAccountSlab>) -> Result<()> {
         Ok(())
     }
 
@@ -52,6 +51,22 @@ pub mod speedy_token {
         Ok(())
     }
 
+    pub fn initialize_mint_slab(_ctx: Context<InitializeMintSlab>) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn allocate_mint(ctx: Context<AllocateMint>, mint_authority: Pubkey, index: u32) -> Result<()> {
+        let slab = &mut ctx.accounts.slab.load_mut()?;
+
+        let mint = &mut slab.mints[index as usize];
+
+        require!(mint.mint_authority == Pubkey::default(), TokenError::SpaceAlreadyTaken);
+
+        mint.mint_authority = mint_authority;
+
+        Ok(())
+    }
+
 }
 
 #[derive(Accounts)]
@@ -64,6 +79,18 @@ pub struct InitializeTokenAccountSlab<'info> {
 pub struct AllocateTokenAccount<'info> {
     #[account(mut)]
     slab: AccountLoader<'info, TokenAccountSlab>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeMintSlab<'info> {
+    #[account(zero)]
+    slab: AccountLoader<'info, MintSlab>,
+}
+
+#[derive(Accounts)]
+pub struct AllocateMint<'info> {
+    #[account(mut)]
+    slab: AccountLoader<'info, MintSlab>,
 }
 
 #[error_code]

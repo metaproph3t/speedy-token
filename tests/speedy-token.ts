@@ -69,11 +69,33 @@ describe("speedy-token", async function () {
       .signers([tokenSlab])
       .rpc();
 
-    await program.methods.allocateTokenAccount(alice.publicKey, 0, new BN(0))
+    await program.methods.allocateTokenAccount(alice.publicKey, 0, 0)
       .accounts({
         slab: tokenSlab.publicKey,
       })
       .rpc();
+
+    await program.methods.allocateTokenAccount(bob.publicKey, 0, 1)
+      .accounts({
+        slab: tokenSlab.publicKey,
+      })
+      .rpc();
+
+    await program.methods.mintTo(0, new BN(10))
+      .accounts({
+        tokenSlab: tokenSlab.publicKey,
+        mintSlab: mintSlab.publicKey,
+      })
+      .rpc();
+
+    await program.methods.transfer(0, 1, new BN(2))
+      .accounts({
+        slab: tokenSlab.publicKey,
+      })
+      .rpc();
+
+    console.log(await program.account.tokenAccountSlab.fetch(tokenSlab.publicKey));
+
   });
 });
 

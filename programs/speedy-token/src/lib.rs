@@ -67,6 +67,42 @@ pub mod speedy_token {
         Ok(())
     }
 
+    pub fn mint_to(ctx: Context<MintTo>, to: u32, amount: u64) -> Result<()> {
+        let token_slab = &mut ctx.accounts.token_slab.load_mut()?;
+
+        let to = &mut token_slab.token_accounts[to as usize];
+        to.balance += amount;
+        
+        Ok(())
+    }
+
+
+    pub fn transfer(ctx: Context<Transfer>, from: u32, to: u32, amount: u64) -> Result<()> {
+        let slab = &mut ctx.accounts.slab.load_mut()?;
+
+        let from = &mut slab.token_accounts[from as usize];
+        from.balance -= amount;
+        from.nonce += 1;
+
+        let to = &mut slab.token_accounts[to as usize];
+        to.balance += amount;
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct MintTo<'info> {
+    #[account(mut)]
+    token_slab: AccountLoader<'info, TokenAccountSlab>,
+    #[account(mut)]
+    mint_slab: AccountLoader<'info, MintSlab>,
+}
+
+#[derive(Accounts)]
+pub struct Transfer<'info> {
+    #[account(mut)]
+    slab: AccountLoader<'info, TokenAccountSlab>,
 }
 
 #[derive(Accounts)]

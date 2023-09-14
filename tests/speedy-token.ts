@@ -88,13 +88,36 @@ describe("speedy-token", async function () {
       })
       .rpc();
 
-    await program.methods.transfer(0, 1, new BN(2))
+    console.log(program.instruction.mintTo.accounts({
+        tokenSlab: tokenSlab.publicKey,
+        mintSlab: mintSlab.publicKey,
+      }));
+
+    const ix = anchor.web3.Ed25519Program.createInstructionWithPrivateKey({message: Buffer.from([0,1,2,3,300]), privateKey: alice.secretKey});
+    const ix2 = anchor.web3.Ed25519Program.createInstructionWithPrivateKey({message: Buffer.from([0,1,2,3,3]), privateKey: alice.secretKey});
+    console.log(ix.data.length);
+
+    const tx = await program.methods.transfer({from: 0, to: 1, amount: new BN(2)})
       .accounts({
         slab: tokenSlab.publicKey,
       })
-      .rpc();
+     // .remainingAccounts({
+     //   pubkey: alice.publicKey,
+     //   isWritable: false,
+     //   isSigner: true,
+     // })
+      .preInstructions([ix, ix2, ix2])
+     // .signers([alice])
+      .transaction();
 
-    console.log(await program.account.tokenAccountSlab.fetch(tokenSlab.publicKey));
+    [tx.recentBlockhash] = (await banksClient.getLatestBlockhash())!;
+    tx.sign(payer);
+    console.log(tx);
+
+    let result = await banksClient.simulateTransaction(tx);
+    console.log("Compute units consumed", result.meta.computeUnitsConsumed);
+
+    //console.log(await program.account.tokenAccountSlab.fetch(tokenSlab.publicKey));
 
   });
 });

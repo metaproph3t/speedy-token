@@ -76,16 +76,22 @@ pub mod speedy_token {
         Ok(())
     }
 
+    #[derive(AnchorSerialize, AnchorDeserialize)]
+    pub struct TransferInstruction {
+        from: u32,
+        to: u32,
+        amount: u64,
+    }
 
-    pub fn transfer(ctx: Context<Transfer>, from: u32, to: u32, amount: u64) -> Result<()> {
+    pub fn transfer(ctx: Context<Transfer>, ix: TransferInstruction) -> Result<()> {
         let slab = &mut ctx.accounts.slab.load_mut()?;
 
-        let from = &mut slab.token_accounts[from as usize];
-        from.balance -= amount;
+        let from = &mut slab.token_accounts[ix.from as usize];
+        from.balance -= ix.amount;
         from.nonce += 1;
 
-        let to = &mut slab.token_accounts[to as usize];
-        to.balance += amount;
+        let to = &mut slab.token_accounts[ix.to as usize];
+        to.balance += ix.amount;
 
         Ok(())
     }
